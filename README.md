@@ -1,133 +1,146 @@
-# Wanderlust - Your Ultimate Travel Blog 🌍✈️
+# DevSecOps 3-Tier Project
 
-WanderLust is a simple MERN travel blog website ✈ This project is aimed to help people to contribute in open source, upskill in react and also master git.
+## Overview
+This project implements a **DevSecOps pipeline** for a **3-tier application**, integrating security tools like **SonarQube, OWASP Dependency Check, and Trivy** to ensure code quality and vulnerability scanning. The pipeline is managed using **Jenkins, Docker, and Docker Compose**.
 
-![Preview Image](https://github.com/krishnaacharyaa/wanderlust/assets/116620586/17ba9da6-225f-481d-87c0-5d5a010a9538)
+## Prerequisites
+Before setting up the project, ensure you have the following installed on your system:
+- **Docker & Docker Compose**
+- **Maven**
+- **OpenJDK 17**
+- **Jenkins** with the required plugins
+- **SonarQube Server**
+- **OWASP Dependency Check**
+- **Trivy Security Scanner**
 
-## [Figma Design File](https://www.figma.com/file/zqNcWGGKBo5Q2TwwVgR6G5/WanderLust--A-Travel-Blog-App?type=design&node-id=0%3A1&mode=design&t=c4oCG8N1Fjf7pxTt-1)
-## [Discord Channel](https://discord.gg/FEKasAdCrG)
+## SonarQube using Docker
+- `docker run -itd --name sonarqube-server -p 9001:9000 sonarqube:lts-community `
 
-## 🎯 Goal of this project
+## Jenkins Setup
+### 1. Install Required Plugins
+Go to **Manage Jenkins → Plugin Manager** and install:
+- **SonarQube Scanner**
+- **Sonar Quality Gateway**
+- **Docker**
+- **OWASP Dependency Check**
 
-At its core, this project embodies two important aims:
+### 2. Configure Global Credentials
+1. **Create a Personal Access Token (PAT) for SonarQube**:
+   - Navigate to **SonarQube → Administrator → Users**
+   - Generate a token and store it in **Jenkins credentials**
 
-1. **Start Your Open Source Journey**: It's aimed to kickstart your open-source journey. Here, you'll learn the basics of Git and get a solid grip on the MERN stack and I strongly believe that learning and building should go hand in hand.
-2. **React Mastery**: Once you've got the basics down, a whole new adventure begins of mastering React. This project covers everything, from simple form validation to advanced performance enhancements. And I've planned much more cool stuff to add in the near future if the project hits more number of contributors.
+2. **Create a Webhook in SonarQube**:
+   - Go to **SonarQube → Webhooks**
+   - Name: `Jenkins`
+   - URL: `http://localhost:8080/sonarqube-webhook/`
+   - Click **Create**
 
-_I'd love for you to make the most of this project - it's all about learning, helping, and growing in the open-source world._
+3. **Configure SonarQube in Jenkins**:
+   - Navigate to **Manage Jenkins → Configure System**
+   - Add a **SonarQube Installation**:
+     - Name: `Sonar`
+     - URL: `http://localhost:9000`
+     - Select the SonarQube token
 
-## Setting up the project locally
+### 3. Install Required Tools in Jenkins
+1. **SonarQube Scanner**:
+   - Navigate to **Global Tool Configuration**
+   - Add **SonarQube Scanner** installation
+   - Name: `Sonar`
+   - Select **Install automatically**
 
-### Setting up the Backend
+2. **OWASP Dependency Check**:
+   - Navigate to **Global Tool Configuration**
+   - Add **OWASP Dependency Check**
+   - Name: `OWASP`
+   - Select **Install automatically**
 
-1. **Fork and Clone the Repository**
+## Running SonarQube and Trivy
+Run the following commands to set up SonarQube and Trivy:
+```bash
+# Start SonarQube Server using Docker
+sudo docker run -itd --name sonarqube-server -p 9001:9000 sonarqube:lts-community
 
-   ```bash
-   git clone https://github.com/{your-username}/wanderlust.git
-   ```
+# Install Trivy Security Scanner
+wget https://github.com/aquasecurity/trivy/releases/download/v0.34.0/trivy_0.34.0_Linux-64bit.tar.gz
+tar -xvf trivy_0.34.0_Linux-64bit.tar.gz
+sudo mv trivy /usr/local/bin/
+trivy --version
+```
 
-2. **Navigate to the Backend Directory**
+## Jenkins Pipeline Configuration
+Create a **Jenkinsfile** in your Git repository with the following pipeline:
 
-   ```bash
-   cd backend
-   ```
+```groovy
+pipeline {
+    agent any
+    environment {
+        SONAR_HOME = tool "Sonar"
+        TRIVY_HOME = '/usr/local/bin'
+        PROJECT_PATH = '/var/lib/jenkins/workspace/DevSec'
+    }
 
-3. **Install Required Dependencies**
+    stages {
+        stage('1. Cloning the Code') {
+            steps {
+                git url: "https://github.com/krishnaacharyaa/wanderlust.git", branch: "devops"
+            }
+        }
 
-   ```bash
-   npm i
-   ```
+        stage('2. SonarQube Quality Analysis') {
+            steps {
+                withSonarQubeEnv("Sonar") {
+                    sh "$SONAR_HOME/bin/sonar-scanner -Dsonar.projectName=Wanderlust -Dsonar.projectKey=Wanderlust"
+                }
+            }
+        }
 
-4. **Set up your MongoDB Database**
+        stage('3. OWASP Dependency Check') {
+            steps {
+                dependencyCheck additionalArguments: "-- scan ./", odcInstallation: "OWASP"
+                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+            }
+        }
 
-   - Open MongoDB Compass and connect MongoDB locally at `mongodb://localhost:27017`.
+        stage("4. Wait for SonarQube") {
+            steps {
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
 
-5. **Import sample data**
+        stage('5. Trivy Vulnerability Scan') {
+            steps {
+                sh "$TRIVY_HOME/trivy fs ${PROJECT_PATH} --format table -o trivy-fs-report.html"
+            }
+        }
 
-   > To populate the database with sample posts, you can copy the content from the `backend/data/sample_posts.json` file and insert it as a document in the `wanderlust/posts` collection in your local MongoDB database using either MongoDB Compass or `mongoimport`.
+        stage('6. Deploy using Docker') {
+            steps {
+                sh "docker-compose up"
+            }
+        }
+    }
+}
+```
 
-   ```bash
-   mongoimport --db wanderlust --collection posts --file ./data/sample_posts.json --jsonArray
-   ```
+## Running the Pipeline
+1. **Push the `Jenkinsfile`** to your repository.
+2. **Create a Jenkins job**:
+   - Select **Pipeline** type.
+   - Configure the pipeline to use **SCM (Git)** and enter your repository URL.
+   - Save and **Run the pipeline**.
 
-6. **Configure Environment Variables**
+## Outputs and Reports
+- **SonarQube Dashboard**: Displays code quality results.
+- **OWASP Dependency Check Report**: Identifies vulnerable dependencies.
+- **Trivy Report**: Detects vulnerabilities in your files and dependencies.
+- **Docker Deployment**: Launches the 3-tier application.
 
-   ```bash
-   cp .env.sample .env
-   ```
+![image](https://github.com/user-attachments/assets/6a92c224-ae47-4fa5-8076-702773dc2bfc)
 
-7. **Start the Backend Server**
+![image](https://github.com/user-attachments/assets/236bd54d-2f28-4278-8d8a-dc8bb57db44e)
 
-   ```bash
-   npm start
-   ```
+![image](https://github.com/user-attachments/assets/eaa4deaf-597a-457d-840b-34e4d27b56d7)
 
-   > You should see the following on your terminal output on successful setup.
-   >
-   > ```bash
-   > [BACKEND] Server is running on port 5000
-   > [BACKEND] Database connected: mongodb://127.0.0.1/wanderlust
-   > ```
-
-### Setting up the Frontend
-
-1. **Open a New Terminal**
-
-   ```bash
-   cd frontend
-   ```
-
-2. **Install Dependencies**
-
-   ```bash
-   npm i
-   ```
-
-3. **Configure Environment Variables**
-
-   ```bash
-   cp .env.sample .env.local
-   ```
-
-4. **Launch the Development Server**
-
-   ```bash
-   npm run dev
-   ```
-
-### Setting up with Docker
-
-1.  **Ensure Docker and Docker Compose are Installed**
-    
-2.  **Clone the Repository**
-    
-   ``` bash
-    
-    git clone https://github.com/{your-username}/wanderlust.git
-   ``` 
-3.  **Navigate to the Project Directory**
-    
-    ```bash
-    
-    cd wanderlust
-    
-    ```
-4.  **Update Environment Variables**  - If you anticipate the IP address of the instance might change, update the `.env.sample` file with the new IP address.
-
-5.  **Run Docker Compose**
-    
-    ```bash
-    
-    docker-compose up
-    ```
-    This command will build the Docker images and start the containers for the backend and frontend, enabling you to access the Wanderlust application.
-
-## 🌟 Ready to Contribute?
-
-Kindly go through [CONTRIBUTING.md](https://github.com/krishnaacharyaa/wanderlust/blob/main/.github/CONTRIBUTING.md) to understand everything from setup to contributing guidelines.
-
-## 💖 Show Your Support
-
-If you find this project interesting and inspiring, please consider showing your support by starring it on GitHub! Your star goes a long way in helping me reach more developers and encourages me to keep enhancing the project.
-
-🚀 Feel free to get in touch with me for any further queries or support, happy to help :)
