@@ -138,9 +138,10 @@ pipeline {
 - **Trivy Report**: Detects vulnerabilities in your files and dependencies.
 - **Docker Deployment**: Launches the 3-tier application.
 
-![image](https://github.com/user-attachments/assets/6a92c224-ae47-4fa5-8076-702773dc2bfc)
+![image](https://github.com/user-attachments/assets/47446c71-7b84-46fb-a5cd-5b91e95a6b5f)
 
-![image](https://github.com/user-attachments/assets/236bd54d-2f28-4278-8d8a-dc8bb57db44e)
+![image](https://github.com/user-attachments/assets/8a1b84f3-bc1f-4dc9-a902-60047266aff7)
 
-![image](https://github.com/user-attachments/assets/eaa4deaf-597a-457d-840b-34e4d27b56d7)
+![image](https://github.com/user-attachments/assets/05b046ea-1ada-4a62-b6cb-001a0f6ffec9)
+
 
