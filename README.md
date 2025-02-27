@@ -1,5 +1,7 @@
 # DevSecOps 3-Tier Project
 
+![image](https://github.com/user-attachments/assets/e84fa2f4-2593-4162-b00f-13bf2344548a)
+
 ## Overview
 This project implements a **DevSecOps pipeline** for a **3-tier application**, integrating security tools like **SonarQube, OWASP Dependency Check, and Trivy** to ensure code quality and vulnerability scanning. The pipeline is managed using **Jenkins, Docker, and Docker Compose**.
 
