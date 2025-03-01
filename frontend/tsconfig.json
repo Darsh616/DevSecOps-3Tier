@@ -13,7 +13,6 @@
 
     /* Bundler mode */
     "moduleResolution": "node",  // ✅ Fix: Changed from "bundler" to "node"
-    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
